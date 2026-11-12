@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Darius Coach</title>
+  <link rel="icon" type="image/png" href="darius.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1><img src="darius.png" alt="" class="logo" />Darius <span>Coach</span></h1>
+
+    <div class="combo" id="combo">
+      <input id="champ-input" type="text" placeholder="Search opponent champion…" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="champ-list" aria-autocomplete="list" />
+      <ul id="champ-list" class="combo-list" role="listbox" hidden></ul>
+    </div>
+
+    <div class="role-toggle" role="radiogroup" aria-label="Your role">
+      <label><input type="radio" name="role" value="top" checked /> Top</label>
+      <label><input type="radio" name="role" value="jungle" /> Jungle</label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="abilities" id="abilities">
+      <div class="empty">Pick an opponent to see their abilities, straight from the League of Legends Wiki.</div>
+    </section>
+
+    <aside class="chat">
+      <div class="chat-head">
+        <strong>Matchup coach</strong>
+        <div class="chat-head-right">
+          <button type="button" id="playbook-btn" class="ghost-btn" aria-expanded="false" aria-controls="playbook">📘 Playbook</button>
+          <span id="provider-badge" class="badge">checking…</span>
+        </div>
+      </div>
+      <section id="playbook" class="playbook" hidden>
+        <p class="playbook-intro">Your habits and preferences. The coach reads these on every message.</p>
+        <div id="playbook-list" class="playbook-list"></div>
+        <form id="playbook-form" class="playbook-form">
+          <input id="pb-title" type="text" placeholder="Short title (e.g. Youmuu's as core)" maxlength="80" required />
+          <textarea id="pb-text" rows="3" placeholder="Describe the habit or preference…" maxlength="1500" required></textarea>
+          <div class="playbook-actions">
+            <button type="button" id="pb-cancel" class="ghost-btn" hidden>Cancel</button>
+            <button type="submit" id="pb-save">Add to playbook</button>
+          </div>
+          <div id="pb-error" class="pb-error" hidden></div>
+        </form>
+      </section>
+      <div id="setup" class="setup" hidden></div>
+      <div id="messages" class="messages">
+        <div class="empty">Pick a champion and I'll explain how to play Darius into them and what to build.</div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" rows="2" placeholder="Ask a follow-up…" disabled></textarea>
+        <button type="submit" id="send-btn" disabled>Send</button>
+      </form>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

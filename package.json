@@ -1,0 +1,17 @@
+{
+  "name": "darius-coach",
+  "version": "1.0.0",
+  "description": "Matchup ability breakdowns from the LoL wiki plus a Claude-powered Darius coach",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test --experimental-test-coverage test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "cheerio": "^1.2.0",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  }
+}
