@@ -14,17 +14,18 @@ I main Darius top lane and sometimes play him in the jungle. During champion sel
 
 Darius Coach puts that into a single screen. Once I see what I'm laning against in draft, I:
 
-1. **Search the enemy champion** and get clean cards for each ability (cooldowns, costs, ranges and per-rank values), taken directly from the wiki.
+1. **Search the enemy champion** and get their Abilities section exactly as it looks on the wiki, with the wiki's hover previews (hover *silence* to see what it does), but without the ads, nav or sidebars.
 2. **Ask the coach** "How should I play Darius into them? What should I build?" and get **3 quick tips** (game plan, the ability to respect, item build) before the game loads.
-3. **Ask follow-ups** about levels 1-3, trading windows, runes or wave management when I have time.
+3. **Ask follow-ups** when I have time. After every answer the coach suggests the 3 questions I'm most likely to ask next, so it leads the conversation and I just click one.
 
 The coach is personal. It reads my **Playbook**: my own habits and preferences, such as which jungle camp I ward to track the enemy jungler, preferring Youmuu's Ghostblade over Stridebreaker, and building crit when it's viable. Its advice fits how I actually play instead of a generic guide.
 
 ## Features
 
 - **Searchable champion picker** using Riot's Data Dragon champion list.
-- **Clean ability cards** parsed from the Abilities section of the LoL Wiki.
-- **AI matchup coach** (Claude). Its prompt includes the exact ability text for Darius and the opponent, plus the Top/Jungle role. It only calls Claude when you click Send.
+- **Wiki-accurate ability breakdowns**: only the Abilities section, rendered with the wiki's own styles. Hovering a keyword, ability, item or champion shows the same tooltip as the wiki, and the Notes tabs and ◄ ► value toggles work too.
+- **AI matchup coach** (Claude). Its prompt includes the exact ability text for Darius and the opponent, plus the Top/Jungle role. It only answers when you click Send.
+- **Coach-suggested follow-ups**: after each reply, Claude predicts the 3 questions you'll most likely ask next and shows them as one-click chips (they fill the input; you still press Send).
 - **Playbook**: add, edit or delete your habits in the sidebar. They are saved to `data/knowledge.json` and sent to the coach with every message.
 
 ## Run it
@@ -49,9 +50,13 @@ When an API key is present, option B is used. Optional settings: `CHAT_PROVIDER=
 |---|---|
 | `server/champions.js` | Champion list from Riot Data Dragon |
 | `server/wiki.js` | Fetches only the "Abilities" section through the wiki's MediaWiki API (cached for 6h) |
-| `server/abilityParser.js` | Turns the wiki HTML into structured ability cards |
+| `server/wikiHtml.js` | Sanitizes wiki HTML (no scripts, iframes or event handlers) and points links and images back to the wiki |
+| `server/embed.js` | Serves the Abilities section as a standalone page with the wiki's stylesheets and a strict content security policy |
+| `server/tooltip.js` | Renders the wiki's `{{Tooltip/...}}` templates (allowlist only) for hover previews |
+| `public/embed/embed.js` | Plain-JS versions of the wiki's tooltip, tab, flip-text and skill-tab scripts |
 | `server/knowledge.js` | Playbook storage (JSON file) |
 | `server/prompt.js` | Coach system prompt: abilities + playbook + answer format |
+| `server/suggestions.js` | Prompt and validation for the coach's suggested next questions (structured output) |
 | `server/providers/` | Claude through the Anthropic SDK (`api.js`) or the `claude` CLI (`cli.js`) |
 | `public/` | Plain HTML, CSS and JS with no build step |
 

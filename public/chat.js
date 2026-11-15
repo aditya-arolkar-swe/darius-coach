@@ -18,23 +18,6 @@ export function clearMessages() {
   messagesEl.replaceChildren();
 }
 
-/** Quick-pick follow-up topics. Clicking one only fills the input box. */
-export function addChips(topics, onPick) {
-  if (!topics.length) return;
-  const wrap = document.createElement("div");
-  wrap.className = "chips";
-  for (const topic of topics) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "chip";
-    btn.textContent = topic;
-    btn.addEventListener("click", () => onPick(`Tell me more about: ${topic}`));
-    wrap.append(btn);
-  }
-  messagesEl.append(wrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
 /** Parses the server-sent-event stream from POST /api/chat. */
 async function* readSse(response) {
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();

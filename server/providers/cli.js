@@ -75,3 +75,54 @@ export async function* streamViaCli({ system, messages }) {
     if (child.exitCode === null) child.kill("SIGTERM");
   }
 }
+
+const CLI_JSON_TIMEOUT_MS = 90 * 1000;
+
+/** Pulls the structured result out of `claude -p --output-format json` output. */
+export function parseCliJsonResult(stdout) {
+  let out;
+  try {
+    out = JSON.parse(stdout);
+  } catch {
+    throw new Error("Claude CLI returned unreadable output");
+  }
+  if (out.is_error) throw new Error(typeof out.result === "string" ? out.result : "Claude CLI reported an error");
+  return out.structured_output ?? null;
+}
+
+/** One quick structured-output call through the logged-in Claude CLI. */
+export function jsonViaCli({ system, prompt, jsonSchema, effort }) {
+  const args = [
+    "-p",
+    "--output-format", "json",
+    "--json-schema", JSON.stringify(jsonSchema),
+    "--effort", effort,
+    "--system-prompt", system,
+    "--tools", "",
+    "--strict-mcp-config",
+    "--setting-sources", "",
+    "--no-session-persistence",
+  ];
+  return new Promise((resolve, reject) => {
+    const child = spawn("claude", args, { cwd: tmpdir(), stdio: ["pipe", "pipe", "pipe"] });
+    const timer = setTimeout(() => child.kill("SIGTERM"), CLI_JSON_TIMEOUT_MS);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0 && !stdout) return reject(new Error(stderr.trim() || `claude CLI exited with code ${code}`));
+      try {
+        resolve(parseCliJsonResult(stdout));
+      } catch (err) {
+        reject(err);
+      }
+    });
+    child.stdin.end(prompt);
+  });
+}

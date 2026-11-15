@@ -8,6 +8,8 @@ export const USER_AGENT = "DariusCoach/1.0 (personal matchup helper)";
 export const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 export const EFFORT = process.env.CLAUDE_EFFORT || "medium";
 export const MAX_OUTPUT_TOKENS = 16000;
+/** Suggested follow-up questions are a quick side task, so they run at low effort. */
+export const SUGGESTION_EFFORT = "low";
 
 export const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const FETCH_TIMEOUT_MS = 15000;

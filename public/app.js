@@ -1,6 +1,5 @@
 import { createCombo } from "./combo.js";
-import { addBubble, addChips, clearMessages, streamReply } from "./chat.js";
-import { renderAbilities } from "./abilities.js";
+import { addBubble, clearMessages, streamReply } from "./chat.js";
 import { initPlaybook } from "./playbook.js";
 
 const $ = (id) => document.getElementById(id);
@@ -8,8 +7,64 @@ const abilitiesEl = $("abilities");
 const chatInput = $("chat-input");
 const sendBtn = $("send-btn");
 
-let state = { champion: null, role: "top", messages: [], provider: null, busy: false, topics: {} };
+let state = { champion: null, role: "top", messages: [], provider: null, busy: false };
 let inflight = null;
+
+let suggestionsAbort = null;
+
+/** Shown before the first reply, and as a fallback if Claude can't suggest questions. */
+const STARTER_SUGGESTIONS = Object.freeze([
+  (champ) => `What CC does ${champ} have?`,
+  (champ) => `What items should I build into ${champ}?`,
+  (champ) => `What runes should I take into ${champ}?`,
+]);
+const starterSuggestions = (champ) => STARTER_SUGGESTIONS.map((make) => make(champ));
+
+/** Suggested questions above the input. Clicking one only fills the box; it never sends. */
+function renderSuggestions(questions, { label = "", loading = false } = {}) {
+  const wrap = $("suggestions");
+  wrap.hidden = !state.champion;
+  if (!state.champion) return;
+  const heading = label ? [Object.assign(document.createElement("div"), { className: "suggestions-label", textContent: label })] : [];
+  if (loading) {
+    const note = Object.assign(document.createElement("span"), { className: "suggestions-loading", textContent: "Coach is thinking of follow-up questions…" });
+    wrap.replaceChildren(...heading, note);
+    return;
+  }
+  wrap.replaceChildren(
+    ...heading,
+    ...questions.map((text) => {
+      const btn = Object.assign(document.createElement("button"), { type: "button", className: "chip", textContent: text });
+      btn.addEventListener("click", () => prefill(text));
+      return btn;
+    }),
+  );
+}
+
+/** After each reply, asks Claude what the player is likely to ask next and shows 3 of those. */
+async function refreshSuggestions(messages) {
+  suggestionsAbort?.abort();
+  suggestionsAbort = new AbortController();
+  const { signal } = suggestionsAbort;
+  renderSuggestions([], { label: "Suggested by your coach", loading: true });
+  try {
+    const res = await fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ champion: state.champion, role: state.role, messages }),
+      signal,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!body.success) throw new Error(body.error ?? `HTTP ${res.status}`);
+    if (state.messages !== messages) return; // conversation moved on
+    const questions = body.data.questions;
+    if (questions.length) renderSuggestions(questions, { label: "Suggested by your coach" });
+    else renderSuggestions(starterSuggestions(state.champion));
+  } catch (err) {
+    if (err.name === "AbortError" || state.messages !== messages) return;
+    renderSuggestions(starterSuggestions(state.champion));
+  }
+}
 
 const setState = (patch) => {
   state = { ...state, ...patch };
@@ -45,6 +100,7 @@ function prefill(text) {
 
 async function send(content) {
   inflight?.abort();
+  suggestionsAbort?.abort();
   inflight = new AbortController();
   const messages = [...state.messages, { role: "user", content }];
   addBubble("user", content);
@@ -57,13 +113,15 @@ async function send(content) {
     // Drop a failed question so user/assistant turns keep alternating.
     messages: reply ? [...messages, { role: "assistant", content: reply }] : messages.slice(0, -1),
   });
-  if (reply && messages.length === 1) addChips(state.topics[state.role] ?? [], prefill);
+  if (reply) refreshSuggestions(state.messages);
 }
 
 function resetChat() {
   inflight?.abort();
+  suggestionsAbort?.abort();
   clearMessages();
   setState({ messages: [], busy: false });
+  renderSuggestions(starterSuggestions(state.champion));
   if (!state.provider) {
     addBubble("error", "Connect Claude first (see setup above).");
     return;
@@ -72,14 +130,23 @@ function resetChat() {
   prefill(openingQuestion(state.champion, state.role));
 }
 
-async function loadAbilities(champion) {
-  abilitiesEl.innerHTML = `<div class="loading">Loading ${champion.name}'s abilities from the wiki…</div>`;
-  try {
-    const data = await getJson(`/api/abilities/${encodeURIComponent(champion.name)}`);
-    if (state.champion === champion.name) renderAbilities(abilitiesEl, data);
-  } catch (err) {
-    showError(abilitiesEl, `Couldn't load abilities: ${err.message}`);
-  }
+/** Shows the wiki's own Abilities section (wiki styling + hover tooltips) in an isolated frame. */
+function loadAbilities(champion) {
+  const loading = Object.assign(document.createElement("div"), {
+    className: "loading",
+    textContent: `Loading ${champion.name}'s abilities from the wiki…`,
+  });
+  const frame = Object.assign(document.createElement("iframe"), {
+    className: "wiki-frame",
+    title: `${champion.name} abilities`,
+    src: `/embed/abilities/${encodeURIComponent(champion.name)}`,
+  });
+  frame.hidden = true;
+  frame.addEventListener("load", () => {
+    loading.remove();
+    frame.hidden = false;
+  });
+  abilitiesEl.replaceChildren(loading, frame);
 }
 
 function showSetup() {
@@ -99,8 +166,8 @@ function showSetup() {
 async function checkStatus() {
   const badge = $("provider-badge");
   try {
-    const { provider, model, followUpTopics } = await getJson("/api/status");
-    setState({ provider, topics: followUpTopics ?? {} });
+    const { provider, model } = await getJson("/api/status");
+    setState({ provider });
     if (provider) {
       badge.className = "badge ok";
       badge.textContent = provider === "cli" ? "Claude account" : `API · ${model}`;

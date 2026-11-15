@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { EFFORT, MAX_OUTPUT_TOKENS, MODEL } from "../config.js";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { EFFORT, MAX_OUTPUT_TOKENS, MODEL, SUGGESTION_EFFORT } from "../config.js";
 
 let client;
 function getClient() {
@@ -20,6 +21,18 @@ export function friendlyApiError(err) {
   }
   if (err instanceof Anthropic.APIError) return `Claude API error (${err.status ?? "network"}): ${err.message}`;
   return null;
+}
+
+/** One quick structured-output call; returns the parsed object, or null if Claude declined. */
+export async function jsonViaApi({ system, prompt, schema }) {
+  const response = await getClient().messages.parse({
+    model: MODEL,
+    max_tokens: 2000,
+    output_config: { effort: SUGGESTION_EFFORT, format: zodOutputFormat(schema) },
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+  return response.parsed_output ?? null;
 }
 
 /** Streams text deltas from the Claude API (billed to your Console API account). */

@@ -1,0 +1,26 @@
+/* Layout overrides so the wiki's Vector skin styles fit inside our pane (no sidebar, header or ads). */
+html, body.embed-body {
+  margin: 0;
+  background-color: var(--body-main, #010a13);
+  color: var(--league-white, #e6e1d6);
+}
+body.embed-body #content.mw-body {
+  margin: 0;
+  padding: 12px 20px 40px;
+  border: 0;
+  background: transparent;
+  max-width: 1100px;
+}
+.embed-source { font-size: 13px; opacity: .75; margin-bottom: 6px; }
+.embed-error { padding: 24px; color: #ffb3b3; font-family: system-ui, sans-serif; }
+
+/* The section heading duplicates the app's context. */
+#mw-content-text .mw-heading2:first-child { display: none; }
+
+/* Classic tabber: hide inactive tabs. */
+.tabberlive .tabbertabhide { display: none; }
+
+#tooltip-wrapper { position: fixed; z-index: 9999; font-size: 14px; max-width: min(600px, calc(100vw - 16px)); pointer-events: none; }
+#tooltip-wrapper[hidden] { display: none; }
+#tooltip-wrapper .main-tooltip { max-width: 100%; overflow: hidden; }
+.embed-tt-loading { opacity: .8; }

@@ -4,11 +4,14 @@ import path from "node:path";
 import { PORT, MODEL } from "./config.js";
 import { getChampions, findChampion } from "./champions.js";
 import { getAbilities } from "./wiki.js";
-import { buildSystemPrompt, FOLLOW_UP_TOPICS } from "./prompt.js";
-import { parseChatRequest } from "./validation.js";
-import { detectProvider, streamChat, describeError } from "./providers/index.js";
+import { buildSystemPrompt } from "./prompt.js";
+import { parseChatRequest, parseSuggestionsRequest } from "./validation.js";
+import { detectProvider, streamChat, completeJson, describeError } from "./providers/index.js";
+import { buildSuggestionsPrompt, normalizeSuggestions, SuggestionsSchema, SUGGESTIONS_JSON_SCHEMA } from "./suggestions.js";
 import { createKnowledgeStore, knowledgeToPrompt } from "./knowledge.js";
 import { knowledgeRouter } from "./knowledgeRoutes.js";
+import { renderAbilitiesPage, renderErrorPage, EMBED_CSP } from "./embed.js";
+import { isAllowedTooltip, renderTooltip } from "./tooltip.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -28,7 +31,7 @@ app.use("/api/knowledge", knowledgeRouter(knowledge, { ok, fail, logError }));
 
 app.get("/api/status", async (_req, res) => {
   providerPromise = detectProvider(); // re-check so a fresh `claude` login is picked up
-  ok(res, { provider: await providerPromise, model: MODEL, followUpTopics: FOLLOW_UP_TOPICS });
+  ok(res, { provider: await providerPromise, model: MODEL });
 });
 
 app.get("/api/champions", async (_req, res) => {
@@ -40,14 +43,27 @@ app.get("/api/champions", async (_req, res) => {
   }
 });
 
-app.get("/api/abilities/:name", async (req, res) => {
+app.get("/embed/abilities/:name", async (req, res) => {
+  res.set("Content-Security-Policy", EMBED_CSP);
+  res.type("html");
   try {
     const champ = await findChampion(req.params.name);
-    if (!champ) return fail(res, 404, `Unknown champion "${req.params.name}"`);
-    const { title, abilities, sourceUrl } = await getAbilities(champ.name);
-    ok(res, { title, abilities, sourceUrl });
+    if (!champ) return res.status(404).send(renderErrorPage(`Unknown champion "${req.params.name}"`));
+    res.send(renderAbilitiesPage(await getAbilities(champ.name)));
   } catch (err) {
     logError(`abilities ${req.params.name}`, err);
+    res.status(err.status ?? 500).send(renderErrorPage(`Couldn't load abilities: ${err.message}`));
+  }
+});
+
+app.get("/api/wiki/tooltip", async (req, res) => {
+  const text = typeof req.query.text === "string" ? req.query.text : "";
+  if (!isAllowedTooltip(text)) return fail(res, 400, "Unsupported tooltip");
+  try {
+    res.set("Cache-Control", "public, max-age=3600");
+    ok(res, { html: await renderTooltip(text) });
+  } catch (err) {
+    logError("tooltip", err);
     fail(res, err.status ?? 500, err.message);
   }
 });
@@ -98,6 +114,24 @@ app.post("/api/chat", async (req, res) => {
     send("error", { error: describeError(err) });
   } finally {
     res.end();
+  }
+});
+
+/** After each coach reply: asks Claude which questions the player will most likely ask next. */
+app.post("/api/suggestions", async (req, res) => {
+  const parsed = parseSuggestionsRequest(req.body);
+  if (!parsed.ok) return fail(res, 400, parsed.error);
+  const provider = await providerPromise;
+  if (!provider) return fail(res, 503, "No Claude connection configured.");
+  try {
+    const champ = await findChampion(parsed.data.champion);
+    if (!champ) return fail(res, 404, `Unknown champion "${parsed.data.champion}"`);
+    const { system, prompt } = buildSuggestionsPrompt({ ...parsed.data, opponent: champ.name });
+    const raw = await completeJson(provider, { system, prompt, schema: SuggestionsSchema, jsonSchema: SUGGESTIONS_JSON_SCHEMA });
+    ok(res, { questions: normalizeSuggestions(raw) });
+  } catch (err) {
+    logError("suggestions", err);
+    fail(res, 502, describeError(err));
   }
 });
 

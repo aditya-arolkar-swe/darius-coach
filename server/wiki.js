@@ -1,22 +1,11 @@
 import * as cheerio from "cheerio";
 import { CACHE_TTL_MS, WIKI_API, WIKI_BASE } from "./config.js";
 import { createCache } from "./cache.js";
-import { parseAbilities } from "./abilityParser.js";
+import { sanitizeWikiHtml, STRIP_SELECTORS } from "./wikiHtml.js";
 import { fetchJson, UpstreamError } from "./http.js";
 
 const cached = createCache(CACHE_TTL_MS);
 
-const STRIP_SELECTORS = [
-  "script",
-  "style",
-  "iframe",
-  "object",
-  "embed",
-  "form",
-  "noscript",
-  'a[href*="action=edit"]',
-  ".mw-editsection",
-];
 
 export function findAbilitiesSectionIndex(sections) {
   const match = (sections ?? []).find((s) => s.line?.trim().toLowerCase() === "abilities");
@@ -52,13 +41,13 @@ async function fetchAbilitiesRaw(page) {
   return { title: meta.parse.title, html };
 }
 
-/** Returns { title, abilities, text, sourceUrl } for a champion's abilities. */
+/** Returns { title, html, text, sourceUrl } for a champion's abilities. */
 export function getAbilities(championName) {
   return cached(championName, async () => {
     const { title, html } = await fetchAbilitiesRaw(championName);
     return {
       title,
-      abilities: parseAbilities(html),
+      html: sanitizeWikiHtml(html),
       text: abilitiesToText(html),
       sourceUrl: `${WIKI_BASE}/en-us/${encodeURIComponent(title.replace(/ /g, "_"))}#Abilities`,
     };

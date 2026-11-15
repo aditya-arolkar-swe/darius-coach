@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { streamViaApi, friendlyApiError } from "./api.js";
-import { streamViaCli } from "./cli.js";
+import { streamViaApi, jsonViaApi, friendlyApiError } from "./api.js";
+import { streamViaCli, jsonViaCli } from "./cli.js";
+import { SUGGESTION_EFFORT } from "../config.js";
 
 const run = promisify(execFile);
 
@@ -31,6 +32,13 @@ export async function detectProvider(env = process.env, hasCli = cliAvailable) {
 export function streamChat(provider, payload) {
   if (provider === "api") return streamViaApi(payload);
   if (provider === "cli") return streamViaCli(payload);
+  throw new Error(`Unknown provider: ${provider}`);
+}
+
+/** One-shot structured call. `schema` is zod (API path), `jsonSchema` the same shape as plain JSON Schema (CLI path). */
+export function completeJson(provider, { system, prompt, schema, jsonSchema }) {
+  if (provider === "api") return jsonViaApi({ system, prompt, schema });
+  if (provider === "cli") return jsonViaCli({ system, prompt, jsonSchema, effort: SUGGESTION_EFFORT });
   throw new Error(`Unknown provider: ${provider}`);
 }
 
