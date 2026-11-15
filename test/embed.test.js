@@ -33,6 +33,8 @@ test("absolutizeUrl handles relative, protocol-relative and absolute urls", () =
   assert.equal(absolutizeUrl("//cdn.example/x"), "https://cdn.example/x");
   assert.equal(absolutizeUrl("https://a.b/c"), "https://a.b/c");
   assert.equal(absolutizeUrl(""), "");
+  assert.equal(absolutizeUrl("#Pets", "https://wiki.leagueoflegends.com/en-us/Illaoi"), "https://wiki.leagueoflegends.com/en-us/Illaoi#Pets");
+  assert.equal(absolutizeUrl("#Pets"), "#Pets");
 });
 
 test("isAllowedTooltip only accepts the wiki tooltip templates", () => {

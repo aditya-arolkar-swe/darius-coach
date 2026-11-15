@@ -20,8 +20,9 @@ export const STRIP_SELECTORS = Object.freeze([
 
 const DANGEROUS_URL = /^\s*(javascript|vbscript|data):/i;
 
-export function absolutizeUrl(value) {
+export function absolutizeUrl(value, pageUrl = "") {
   if (!value) return value;
+  if (value.startsWith("#") && pageUrl) return `${pageUrl}${value}`;
   if (value.startsWith("//")) return `https:${value}`;
   if (value.startsWith("/")) return `${WIKI_BASE}${value}`;
   return value;
@@ -40,9 +41,10 @@ function absolutizeSrcset(srcset) {
 /**
  * Makes wiki-rendered HTML safe to embed: removes scripts, event handlers and
  * dangerous URLs, keeps classes / inline styles / data-* (needed for the wiki
- * look and tooltips), and points links and images at the wiki.
+ * look and tooltips), and points links and images at the wiki. `pageUrl` (the
+ * champion's wiki page) resolves same-page #anchor links.
  */
-export function sanitizeWikiHtml(rawHtml) {
+export function sanitizeWikiHtml(rawHtml, pageUrl = "") {
   const $ = cheerio.load(rawHtml, null, false);
   // Video tabs would be empty once embeds are stripped, so drop the whole tab.
   $(".tabbertab").filter((_, tab) => $(tab).find(".embedvideo").length > 0).remove();
@@ -60,7 +62,7 @@ export function sanitizeWikiHtml(rawHtml) {
   $("[srcset]").each((_, el) => $(el).attr("srcset", absolutizeSrcset($(el).attr("srcset"))));
   $("img[loading]").removeAttr("loading");
   $("a[href]").each((_, el) => {
-    $(el).attr("href", absolutizeUrl($(el).attr("href")));
+    $(el).attr("href", absolutizeUrl($(el).attr("href"), pageUrl));
     $(el).attr("target", "_blank").attr("rel", "noopener noreferrer");
   });
   return $.html();
