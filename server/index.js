@@ -1,4 +1,5 @@
 import express from "express";
+import { logError } from "./log.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PORT, MODEL } from "./config.js";
@@ -21,9 +22,6 @@ app.use(express.static(path.join(here, "..", "public")));
 const ok = (res, data) => res.json({ success: true, data });
 const fail = (res, status, error) => res.status(status).json({ success: false, error });
 
-function logError(context, err) {
-  process.stderr.write(`[${new Date().toISOString()}] ${context}: ${err.stack ?? err}\n`);
-}
 
 let providerPromise = detectProvider();
 const knowledge = createKnowledgeStore(process.env.PLAYBOOK_FILE || path.join(here, "..", "data", "knowledge.json"));

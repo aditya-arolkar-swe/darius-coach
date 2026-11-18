@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 export const PORT = Number(process.env.PORT) || 3000;
 
 export const WIKI_BASE = "https://wiki.leagueoflegends.com";
@@ -10,6 +12,9 @@ export const EFFORT = process.env.CLAUDE_EFFORT || "medium";
 export const MAX_OUTPUT_TOKENS = 16000;
 /** Suggested follow-up questions are a quick side task, so they run at low effort. */
 export const SUGGESTION_EFFORT = "low";
+
+/** Where fetched wiki data is saved so each champion is only downloaded once per patch. */
+export const CACHE_DIR = process.env.CACHE_DIR || fileURLToPath(new URL("../data/cache", import.meta.url));
 
 export const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const FETCH_TIMEOUT_MS = 15000;

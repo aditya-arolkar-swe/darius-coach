@@ -1,10 +1,13 @@
 import * as cheerio from "cheerio";
-import { CACHE_TTL_MS, WIKI_API, WIKI_BASE } from "./config.js";
-import { createCache } from "./cache.js";
+import path from "node:path";
+import { CACHE_DIR, WIKI_API, WIKI_BASE } from "./config.js";
+import { createDiskCache } from "./diskCache.js";
+import { getPatch } from "./champions.js";
+import { logError } from "./log.js";
 import { sanitizeWikiHtml, STRIP_SELECTORS } from "./wikiHtml.js";
 import { fetchJson, UpstreamError } from "./http.js";
 
-const cached = createCache(CACHE_TTL_MS);
+const cached = createDiskCache(path.join(CACHE_DIR, "abilities"), { onError: logError });
 
 
 /**
@@ -67,9 +70,12 @@ async function fetchAbilitiesRaw(page) {
   return { title: meta.parse.title, html };
 }
 
-/** Returns { title, html, text, sourceUrl } for a champion's abilities. */
-export function getAbilities(championName) {
-  return cached(championName, async () => {
+/**
+ * Returns { title, html, text, sourceUrl } for a champion's abilities.
+ * Fetched from the wiki once per patch, then served from data/cache on disk.
+ */
+export async function getAbilities(championName) {
+  return cached(championName, await getPatch(), async () => {
     const { title, html } = await fetchAbilitiesRaw(championName);
     const pageUrl = `${WIKI_BASE}/en-us/${encodeURIComponent(title.replace(/ /g, "_"))}`;
     return {

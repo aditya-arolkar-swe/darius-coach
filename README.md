@@ -42,14 +42,15 @@ pnpm start          # → http://localhost:3000
 | **A. Your Claude account (default)** | Your Claude Pro/Max subscription, through the `claude` CLI | Install [Claude Code](https://claude.com/claude-code) and run `claude` once to log in. No API key needed. |
 | **B. API key** | Pay-per-use billing on the Claude Console | `cp .env.example .env`, then set `ANTHROPIC_API_KEY=...` |
 
-When an API key is present, option B is used. Optional settings: `CHAT_PROVIDER=cli|api`, `CLAUDE_MODEL` (default `claude-opus-5-5`), `CLAUDE_EFFORT` (default `medium`), `PORT`, `PLAYBOOK_FILE`.
+When an API key is present, option B is used. Optional settings: `CHAT_PROVIDER=cli|api`, `CLAUDE_MODEL` (default `claude-opus-5-5`), `CLAUDE_EFFORT` (default `medium`), `PORT`, `PLAYBOOK_FILE`, `CACHE_DIR` (default `data/cache`; delete it to force a fresh download).
 
 ## How it works
 
 | Path | Role |
 |---|---|
 | `server/champions.js` | Champion list from Riot Data Dragon |
-| `server/wiki.js` | Fetches only the "Abilities" section through the wiki's MediaWiki API (cached for 6h) |
+| `server/wiki.js` | Fetches only the "Abilities" section through the wiki's MediaWiki API |
+| `server/diskCache.js` | Saves fetched abilities and tooltips to `data/cache/`, so each is downloaded once per patch and loads instantly after that, even across restarts |
 | `server/wikiHtml.js` | Sanitizes wiki HTML (no scripts, iframes or event handlers) and points links and images back to the wiki |
 | `server/embed.js` | Serves the Abilities section as a standalone page with the wiki's stylesheets and a strict content security policy |
 | `server/tooltip.js` | Renders the wiki's `{{Tooltip/...}}` templates (allowlist only) for hover previews |

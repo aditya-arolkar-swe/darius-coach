@@ -29,6 +29,11 @@ export function getChampions() {
   });
 }
 
+/** Current game patch (Data Dragon version), used to know when saved wiki data is out of date. */
+export async function getPatch() {
+  return (await getChampions()).version;
+}
+
 export async function findChampion(name) {
   const { champions } = await getChampions();
   return champions.find((c) => c.name === name) ?? null;
