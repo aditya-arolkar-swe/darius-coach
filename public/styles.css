@@ -98,6 +98,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .msg { padding: 10px 12px; border-radius: 8px; line-height: 1.5; font-size: 14px; overflow-wrap: anywhere; }
 .msg.user { background: #2a1a1d; border: 1px solid #4a2a2f; align-self: flex-end; max-width: 90%; }
 .msg.assistant { background: var(--panel-2); border: 1px solid var(--border); }
+.cached-note { margin-top: 6px; font-size: 11px; color: var(--muted); }
 .msg.hint { color: var(--muted); background: transparent; border: 1px dashed var(--border); }
 .chip {
   padding: 5px 10px; font-size: 13px; color: var(--gold); background: transparent;

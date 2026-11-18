@@ -26,6 +26,7 @@ The coach is personal. It reads my **Playbook**: my own habits and preferences, 
 - **Wiki-accurate ability breakdowns**: only the Abilities section, rendered with the wiki's own styles. Hovering a keyword, ability, item or champion shows the same tooltip as the wiki, and the Notes tabs and ◄ ► value toggles work too.
 - **AI matchup coach** (Claude). Its prompt includes the exact ability text for Darius and the opponent, plus the Top/Jungle role. It only answers when you click Send.
 - **Coach-suggested follow-ups**: after each reply, Claude predicts the 3 questions you'll most likely ask next and shows them as one-click chips (they fill the input; you still press Send).
+- **Answer cache**: asking the exact same thing again (same matchup, role, playbook, patch and conversation) replays the saved answer instantly instead of spending tokens. Suggested questions are cached the same way.
 - **Playbook**: add, edit or delete your habits in the sidebar. They are saved to `data/knowledge.json` and sent to the coach with every message.
 
 ## Run it
@@ -55,6 +56,7 @@ When an API key is present, option B is used. Optional settings: `CHAT_PROVIDER=
 | `server/embed.js` | Serves the Abilities section as a standalone page with the wiki's stylesheets and a strict content security policy |
 | `server/tooltip.js` | Renders the wiki's `{{Tooltip/...}}` templates (allowlist only) for hover previews |
 | `public/embed/embed.js` | Plain-JS versions of the wiki's tooltip, tab, flip-text and skill-tab scripts |
+| `server/answerCache.js` | Saves coach answers and suggested questions to `data/cache/answers/`, keyed by a hash of the full prompt and conversation |
 | `server/knowledge.js` | Playbook storage (JSON file) |
 | `server/prompt.js` | Coach system prompt: abilities + playbook + answer format |
 | `server/suggestions.js` | Prompt and validation for the coach's suggested next questions (structured output) |

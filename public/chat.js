@@ -62,6 +62,12 @@ export async function streamReply({ champion, role, messages, signal }) {
         text += data.text;
         renderMarkdown(bubble, text);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+      } else if (event === "done" && data.cached) {
+        const note = Object.assign(document.createElement("div"), {
+          className: "cached-note",
+          textContent: "↺ Saved answer: same question as before, no tokens used",
+        });
+        bubble.append(note);
       } else if (event === "error") {
         throw new Error(data.error);
       }

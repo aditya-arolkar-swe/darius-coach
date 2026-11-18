@@ -1,5 +1,6 @@
 import express from "express";
 import { logError } from "./log.js";
+import { answerKey, createAnswerCache } from "./answerCache.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PORT, MODEL } from "./config.js";
@@ -24,6 +25,7 @@ const fail = (res, status, error) => res.status(status).json({ success: false, e
 
 
 let providerPromise = detectProvider();
+const answers = createAnswerCache();
 const knowledge = createKnowledgeStore(process.env.PLAYBOOK_FILE || path.join(here, "..", "data", "knowledge.json"));
 app.use("/api/knowledge", knowledgeRouter(knowledge, { ok, fail, logError }));
 
@@ -98,15 +100,28 @@ app.post("/api/chat", async (req, res) => {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
   const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
+  // Same prompt + same conversation -> replay the saved answer instead of spending tokens.
+  const key = answerKey({ kind: "chat", provider, system, messages });
+  const saved = await answers.get(key);
+  if (saved !== undefined) {
+    send("delta", { text: saved });
+    send("done", { cached: true });
+    return res.end();
+  }
+
   const abort = new AbortController();
   res.on("close", () => abort.abort());
 
   try {
+    let reply = "";
     for await (const text of streamChat(provider, { system, messages })) {
       if (abort.signal.aborted) break;
+      reply += text;
       send("delta", { text });
     }
-    send("done", {});
+    // Only complete answers are saved; a stopped or empty stream is not.
+    if (!abort.signal.aborted && reply.trim()) await answers.set(key, reply);
+    send("done", { cached: false });
   } catch (err) {
     logError("chat stream", err);
     send("error", { error: describeError(err) });
@@ -125,8 +140,14 @@ app.post("/api/suggestions", async (req, res) => {
     const champ = await findChampion(parsed.data.champion);
     if (!champ) return fail(res, 404, `Unknown champion "${parsed.data.champion}"`);
     const { system, prompt } = buildSuggestionsPrompt({ ...parsed.data, opponent: champ.name });
-    const raw = await completeJson(provider, { system, prompt, schema: SuggestionsSchema, jsonSchema: SUGGESTIONS_JSON_SCHEMA });
-    ok(res, { questions: normalizeSuggestions(raw) });
+    const key = answerKey({ kind: "suggestions", provider, system, messages: prompt });
+    const saved = await answers.get(key);
+    if (saved !== undefined) return ok(res, { questions: saved, cached: true });
+    const questions = normalizeSuggestions(
+      await completeJson(provider, { system, prompt, schema: SuggestionsSchema, jsonSchema: SUGGESTIONS_JSON_SCHEMA }),
+    );
+    if (questions.length) await answers.set(key, questions);
+    ok(res, { questions, cached: false });
   } catch (err) {
     logError("suggestions", err);
     fail(res, 502, describeError(err));
