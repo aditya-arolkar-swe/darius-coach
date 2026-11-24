@@ -49,6 +49,14 @@ app.get("/api/builds/:champion", (req, res) => {
   });
 });
 
+app.post("/api/team-comp", (req, res) => {
+  const champions = req.body?.champions;
+  if (!Array.isArray(champions) || champions.length === 0 || champions.length > 5 || !champions.every((c) => typeof c === "string" && c.trim())) {
+    return fail(res, 400, "champions must be an array of 1 to 5 champion names");
+  }
+  ok(res, { champions, advice: "just git gud" });
+});
+
 app.get("/api/champions", async (_req, res) => {
   try {
     ok(res, await getChampions());
