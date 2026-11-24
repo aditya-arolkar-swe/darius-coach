@@ -1,0 +1,133 @@
+---
+title: "Local HTTP endpoints and streaming behavior"
+---
+
+This page describes the Darius Coach server's own HTTP endpoints, the SSE chat stream and its limits, for scripting against the app or contributing to it.
+
+## Endpoint overview
+
+The Express server listens on `PORT`, which defaults to 3000, and serves the static front end from `public` alongside the API.
+
+JSON endpoints use one envelope. Success returns `{ "success": true, "data": ... }`. Failure returns the HTTP status with `{ "success": false, "error": "..." }`.
+
+JSON request bodies are limited to 256 KB.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/status` | Active Claude provider and model |
+| `GET /api/health` | Liveness and uptime |
+| `GET /api/hello` | Greeting message |
+| `GET /api/builds/:champion` | Placeholder item list |
+| `GET /api/champions` | Champion list |
+| `GET /embed/abilities/:name` | Embeddable HTML page of a champion's abilities |
+| `GET /api/wiki/tooltip` | Rendered wiki tooltip HTML |
+| `POST /api/chat` | Streaming coach reply (SSE) |
+| `POST /api/suggestions` | Suggested follow-up questions |
+| `/api/knowledge` | Playbook entries (`GET /`, `POST /`, `PUT /:id`, `DELETE /:id`) |
+
+
+
+The product summary lists no authentication on these endpoints, so treat them as local-only.
+
+## Status, health and hello
+
+`GET /api/status` re-runs provider detection on every call, so a fresh `claude` login is picked up without a restart. It returns the detected provider and the model name.
+
+The provider is auto-detected. An API key selects the Claude API. Otherwise the local `claude` CLI is used. `CHAT_PROVIDER=api|cli` forces one.
+
+The model defaults to `claude-opus-5-5`, overridable with `CLAUDE_MODEL`.
+
+```bash
+curl http://localhost:3000/api/status
+```
+
+`GET /api/health` returns `status: "ok"` and `uptimeSeconds`. `GET /api/hello` returns the message "Hello from Darius Coach!".
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+## Chat streaming and the done event
+
+`POST /api/chat` takes a JSON body with `champion`, `role` and `messages`.
+
+```bash
+curl -N -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"champion":"Garen","role":"top","messages":[{"role":"user","content":"How should I play Darius into Garen?"}]}'
+```
+
+The request is rejected before streaming starts in these cases:
+
+- **400**: the body fails validation.
+- **503**: no Claude connection is configured.
+- **404**: the champion is unknown.
+
+Limits are 40 messages of at most 4000 characters each, and the roles are `top` and `jungle` only.
+
+Once the context is built, the server responds with `Content-Type: text/event-stream`. Each event is written as `event: <name>` and `data: <JSON>`.
+
+- A `delta` event carries `{ "text": "..." }`, a piece of the reply.
+- A `done` event ends the reply. When the answer came from the disk cache, it is `{ "cached": true }`.
+
+Replies are cached on disk, keyed by prompt, conversation, provider, model and effort. A repeat question replays the saved text as one `delta` followed by `done` with `cached: true`, spending no tokens.
+
+If the client disconnects, the server aborts the in-flight request.
+
+On the API provider, the reply may end with a note in the text stream. A refusal appends "Claude declined to answer this one." A `max_tokens` stop appends a note that the answer was cut off.
+
+The CLI provider disables tools and MCP and runs in a temp directory.
+
+The front end shows cached answers as saved answers that used no tokens.
+
+## Suggestions
+
+`POST /api/suggestions` accepts `champion`, `role` and `messages`. The response is `data.questions`, an array of follow-up questions.
+
+The front end calls it after each reply and shows three questions as chips. Clicking a chip only fills the input box.
+
+If the request fails or returns no questions, the front end falls back to fixed starter questions.
+
+Suggestions are a quick side task and run at `low` effort.
+
+## Knowledge (Playbook) endpoints
+
+The Playbook lives under `/api/knowledge` with `GET /`, `POST /`, `PUT /:id` and `DELETE /:id`.
+
+`POST` and `PUT` send a JSON body of `title` and `text`. The front end requires both to be non-empty.
+
+Each call returns the full list of entries as `data`, which the Playbook panel uses to re-render.
+
+The Playbook is capped at 50 entries, with titles up to 80 characters and text up to 1500 characters.
+
+Entries are stored in `data/knowledge.json` by default, or in the file named by `PLAYBOOK_FILE`. They are included in the coach prompt for every chat message.
+
+```bash
+curl -X POST http://localhost:3000/api/knowledge \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Trade with Q edge","text":"I prefer to hit Q on the outer edge."}'
+```
+
+## Abilities embed and wiki tooltip
+
+`GET /embed/abilities/:name` returns an HTML page of the champion's wiki abilities, with a `Content-Security-Policy` header. An unknown champion returns 404 with an HTML error page. Load failures return an HTML error page with the error's status, or 500.
+
+```bash
+curl http://localhost:3000/embed/abilities/Darius
+```
+
+`GET /api/wiki/tooltip` takes a `text` query parameter. Unsupported values return 400 with "Unsupported tooltip". Successful responses return `data.html` and carry `Cache-Control: public, max-age=3600`.
+
+Wiki content and champion data refresh when the Data Dragon patch version changes, and the champion list is cached in memory for 6 hours.
+
+## Builds endpoint returns placeholder data
+
+`GET /api/builds/:champion` does not look anything up. It echoes the `champion` path parameter and returns a hardcoded list: Trinity Force, Sundered Sky, Dead Man's Plate, Maw of Malmortius and Guardian Angel.
+
+Do not rely on it for real build data.
+
+For related setup and reference, see these pages:
+
+- [Configuration reference](/operating/configuration) - environment variables and defaults
+- [Caching and patch refreshes](/concepts/caching) - what is cached and when it refreshes
+- [Troubleshooting and running safely](/operating/troubleshooting) - diagnosing problems

@@ -1,0 +1,68 @@
+---
+title: "Darius Coach overview"
+---
+
+Darius Coach is a local web app that gives Darius players matchup coaching and wiki-accurate enemy ability breakdowns during League of Legends champion select.
+
+## What Darius Coach is
+
+Darius Coach puts the enemy's abilities and a Claude-powered matchup coach on a single screen, so you don't have to search the League of Legends Wiki before the draft timer runs out.
+
+It is a local Express app with a plain HTML, CSS and JS front end and no build step. The server provides champion lists, wiki ability sections and tooltips, streamed coaching, follow-up suggestions and Playbook storage. The bundled front end and embed pages call it.
+
+## Who it is for
+
+- League of Legends players, mainly Darius players in the Top or Jungle role, who want a quick read on a matchup during draft.
+- Contributors and operators who run the app locally and configure how it reaches Claude.
+
+Role support is limited to top and jungle.
+
+## What you see during champion select
+
+The pieces fit together in a simple flow:
+
+1. **Champion picker.** You search for the enemy champion in a dropdown built on Riot's Data Dragon champion list.
+2. **Abilities panel.** An iframe shows only the champion's Abilities section from the wiki. It is rendered with the wiki's styles, hover tooltips, Notes tabs and value toggles, without ads, navigation or sidebars.
+3. **Coach.** You choose Top or Jungle and click Send. The coach replies with three quick tips covering the game plan, the ability to respect and the item build.
+4. **Follow-up chips.** After each reply, the coach suggests three likely next questions. Clicking one fills the input box but does not send it.
+5. **Playbook.** Your saved habits and preferences are sent to the coach with every message, so advice fits how you play.
+
+## Main features
+
+- **Searchable champion picker** using Riot's Data Dragon list.
+- **Wiki-accurate abilities.** Wiki HTML is sanitized (no scripts, iframes or event handlers), and links and images point back to the wiki.
+- **AI matchup coach.** Its prompt includes the exact ability text for Darius and the opponent, plus the role. It answers only when you click Send.
+- **Streamed replies.** Chat responses stream over server-sent events from `/api/chat`.
+- **Suggested follow-ups.** If the suggestions request fails or returns nothing, the app falls back to fixed starter questions.
+- **Answer cache.** Repeating the same matchup, role, playbook, patch and conversation replays the saved answer instead of spending tokens. A replayed answer is marked `cached: true` in the done event.
+- **Playbook.** You add, edit or delete entries in the sidebar. They are saved to `data/knowledge.json`. It is capped at 50 entries, with 80-character titles and 1500-character text.
+- **Builds endpoint.** `/api/builds/:champion` returns a hardcoded item list, not real build data.
+
+## How it runs locally
+
+Install dependencies and start the server. The app is then available at `http://localhost:3000`.
+
+```bash
+pnpm install
+pnpm start          # → http://localhost:3000
+```
+
+The port defaults to 3000 and can be changed with `PORT`.
+
+Claude is reached in one of two ways.
+
+- **Claude CLI (default).** Uses your Claude Pro/Max subscription through the logged-in `claude` CLI, with no API key.
+- **API key.** Set `ANTHROPIC_API_KEY` for pay-per-use billing on the Claude Console.
+
+When an API key is present, the API provider is used. `CHAT_PROVIDER=api|cli` forces one. The default model is `claude-opus-5-5` and the default effort is `medium`.
+
+Fetched wiki data is cached on disk under `data/cache` so each champion is downloaded once per patch. The app's own HTTP endpoints have no authentication.
+
+## Where to go next
+
+- [Quickstart](/get-started/quickstart) - install and start the app, then ask your first question
+- [Connecting Claude (API key or CLI)](/get-started/connecting-claude) - choose how the app reaches Claude
+- [Champion picker and enemy abilities](/using-the-coach/champion-picker-and-abilities) - find a champion and read its abilities
+- [Matchup coaching chat](/using-the-coach/matchup-coaching-chat) - ask the coach about a matchup
+- [Using your Playbook](/using-the-coach/playbook) - personalise the coach's advice
+- [How Darius Coach works](/concepts/how-it-works) - the architecture behind the app

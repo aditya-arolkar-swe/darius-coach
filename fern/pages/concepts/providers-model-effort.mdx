@@ -1,0 +1,64 @@
+---
+title: "Providers, model and effort"
+---
+
+Darius Coach reaches Claude through one of two providers, and the provider, model and effort settings shape the answers you get, what they cost and whether repeat questions are replayed from cache.
+
+## API vs CLI provider
+
+The app can reach Claude in two ways: the Anthropic API or the logged-in `claude` CLI.
+
+The provider is chosen by this logic:
+
+- If `CHAT_PROVIDER` is `api`, the API provider is used, but only when `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` is set. Otherwise no provider is available.
+- If `CHAT_PROVIDER` is `cli`, the CLI provider is used, but only when `claude --version` runs successfully. Otherwise no provider is available.
+- If `CHAT_PROVIDER` is not set, an API key selects `api`; with no key, the app falls back to the CLI if it is available.
+
+The check is re-run on every `/api/status` call, so a fresh `claude` login is picked up without a restart. If no provider is available, `/api/chat` responds with a 503 error.
+
+How they differ in practice:
+
+- **API:** replies are billed to your Console API account. The API path uses adaptive thinking, marks the system prompt for ephemeral caching and passes your effort setting. If a safety classifier declines, the request is retried on a fallback model.
+- **CLI:** it uses whatever account `claude` is logged into (a Claude Pro/Max subscription), with no API key. The CLI takes one prompt, so earlier turns are folded into it as a transcript.
+
+The provider is part of the answer cache key, so switching provider does not replay answers saved by the other one. Chat replies are also keyed by prompt, conversation, model and effort; a repeat question replays the saved answer, and the `done` event carries `cached: true`.
+
+For setup steps, see [Connecting Claude (API key or CLI)](/get-started/connecting-claude). (needs confirmation)
+
+## CLAUDE_MODEL default
+
+The model comes from the `CLAUDE_MODEL` environment variable and defaults to `claude-opus-5-5`.
+
+The API provider sends this model on both chat streaming and the structured follow-up suggestion call. `/api/status` reports the active provider and model.
+
+The CLI chat and suggestion calls shown in do not pass a `--model` flag, so `CLAUDE_MODEL` does not appear to select the model on the CLI path (needs confirmation).
+
+Because the model is part of the answer cache key, changing it means earlier questions are answered fresh rather than replayed.
+
+## CLAUDE_EFFORT default
+
+Effort comes from the `CLAUDE_EFFORT` environment variable and defaults to `medium`. On the API path, chat replies are sent with this effort, with a maximum of 16000 output tokens.
+
+Suggested follow-up questions are a quick side task, so they always run at `low` effort regardless of `CLAUDE_EFFORT`. Both providers apply this: the API call uses `SUGGESTION_EFFORT`, and the CLI call passes `--effort` with the same value.
+
+The streamed CLI chat command shown does not pass an `--effort` flag, so `CLAUDE_EFFORT` is applied on the API path only (needs confirmation).
+
+## CLI sandboxing: tools and MCP disabled
+
+When the app shells out to `claude`, it restricts the CLI so it acts only as a text generator. Both the streaming chat call and the structured JSON call pass these flags:
+
+```js
+"--tools", "",
+"--strict-mcp-config",
+"--setting-sources", "",
+"--no-session-persistence",
+```
+
+- `--tools ""` disables the CLI's tools.
+- `--strict-mcp-config` with no MCP config supplied means no MCP servers are loaded.
+- `--setting-sources ""` loads no settings sources, and `--no-session-persistence` avoids saving the session.
+- The process runs with its working directory set to the OS temp directory.
+
+The coach's system prompt is passed with `--system-prompt`, and the prompt is written to the process's stdin. Streamed chat calls time out after 5 minutes, and structured calls after 90 seconds.
+
+See also [Configuration reference](/operating/configuration) and [Caching and patch refreshes](/concepts/caching). (needs confirmation)

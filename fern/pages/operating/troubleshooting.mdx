@@ -1,0 +1,82 @@
+---
+title: "Troubleshooting and running safely"
+---
+
+How to diagnose Claude provider, chat and wiki data problems in Darius Coach, and why the app should only be run on localhost.
+
+## Provider not detected
+
+Darius Coach picks its Claude connection automatically. If an API key is present it uses the Claude API. Otherwise it uses the local `claude` CLI and its subscription login. `CHAT_PROVIDER=api` or `CHAT_PROVIDER=cli` forces one.
+
+To see what the server detected, call `GET /api/status`. It returns the detected `provider` and the `model`.
+
+Each `/api/status` call re-runs the provider check, so a fresh `claude` login is picked up without restarting the server.
+
+If no provider is found, the front end leaves the chat input and Send button disabled and shows "Connect Claude first (see setup above)."
+
+Checks to run:
+
+- With the CLI option, confirm you installed Claude Code and ran `claude` once to log in.
+- With the API option, confirm `ANTHROPIC_API_KEY` is set, for example by copying `.env.example` to `.env`.
+- If you have an API key set but want the subscription login, set `CHAT_PROVIDER=cli`. An API key otherwise takes priority, and its usage is billed to the Console account.
+
+See [Connecting Claude (API key or CLI)](/get-started/connecting-claude) for the full setup.
+
+## Chat errors
+
+`POST /api/chat` fails with these responses, each returned as `{ success: false, error }`:
+
+- **400**: the request failed validation. The error message says why. Chat requests are capped at 40 messages of 4000 characters each.
+- **503**: "No Claude connection configured. See the setup steps in the chat panel." See [Provider not detected](#provider-not-detected).
+- **404**: `Unknown champion "..."`. The champion name was not found in the champion list.
+- **Other statuses while loading context**: failures fetching champion or wiki data are returned with the error's status, or 500. They are also logged on the server.
+
+The server rejects JSON request bodies over 256kb.
+
+When a reply fails in the browser, the failed question is dropped from the conversation so user and assistant turns keep alternating.
+
+If the follow-up suggestions request fails or returns nothing, the page falls back to fixed starter questions. This is expected behavior, not a bug.
+
+For the exact limits and the stream format, see [Local HTTP endpoints and streaming behavior](/operating/http-endpoints).
+
+## Stale or missing wiki data
+
+Champion data and wiki content refresh when the Data Dragon patch version changes. The champion list is also cached in memory for 6 hours.
+
+Fetched abilities and tooltips are saved to `data/cache/`, so each is downloaded once per patch, even across restarts. The cache directory is set with `CACHE_DIR`, and deleting it forces a fresh download.
+
+Errors you may see in the abilities panel and tooltips:
+
+- `GET /embed/abilities/:name` returns a 404 error page reading `Unknown champion "..."` if the name is not in the champion list. Other failures show "Couldn't load abilities:" followed by the reason.
+- `GET /api/wiki/tooltip` returns 400 "Unsupported tooltip" for text that is not on the tooltip allowlist.
+
+Outbound requests to the wiki and Data Dragon time out after 15 seconds.
+
+See [Caching and patch refreshes](/concepts/caching) for more on what is cached.
+
+## Cached answers when you expected fresh ones
+
+Chat replies are cached on disk. The cache key covers the prompt, the conversation, the provider, the model and the effort. A repeated question therefore replays the saved answer.
+
+A replayed answer is sent as a single `delta` event followed by a `done` event with `cached: true`.
+
+The interface flags such answers to you as saved answers that used no tokens.
+
+The prompt the key is built from includes the ability text for both champions, the role and your Playbook. Changing any of them, or the provider, model or effort, produces a new key and a fresh answer.
+
+Answers are saved under `data/cache/answers/`, keyed by a hash of the full prompt and conversation.
+
+The default model is `claude-opus-5-5` and the default effort is `medium`. Override them with `CLAUDE_MODEL` and `CLAUDE_EFFORT`.
+
+## No authentication: keep it on localhost
+
+The app's own HTTP endpoints have no authentication.
+
+The README documents running it at `http://localhost:3000`, with `PORT` as an optional setting. Whether the server binds only to the loopback interface is not shown in the available source (needs confirmation), so do not assume that it does.
+
+Anyone who can reach the port can:
+
+- Call `POST /api/chat` and `POST /api/suggestions`, which use your configured Claude connection: either your API-billed account or your subscription login.
+- Read and change your Playbook through `/api/knowledge`, which supports GET, POST, PUT and DELETE.
+
+For that reason, run it on your own machine rather than exposing the port to a network. (needs confirmation)

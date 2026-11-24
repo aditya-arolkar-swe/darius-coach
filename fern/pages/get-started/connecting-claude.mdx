@@ -1,0 +1,77 @@
+---
+title: "Connecting Claude (API key or CLI)"
+---
+
+Darius Coach reaches Claude through either an Anthropic API key or the logged-in claude CLI, and this page shows how to pick one and confirm which is active.
+
+## Two ways to connect
+
+The app supports two Claude providers. The first is the Claude API, used when `ANTHROPIC_API_KEY` is set and billed to your Anthropic Console account. The second is the local `claude` CLI, which uses its subscription login.
+
+You do not need both. The app detects which one is available, and you can force the choice with `CHAT_PROVIDER`.
+
+Without a working connection, `POST /api/chat` returns a 503 with the message "No Claude connection configured. See the setup steps in the chat panel."
+
+## Anthropic API key provider
+
+Set `ANTHROPIC_API_KEY` in the environment the server runs in. When a key is present, the app uses the Claude API.
+
+```bash
+ANTHROPIC_API_KEY=YOUR_API_KEY pnpm start
+```
+
+The front-end setup text says to restart with `pnpm start` after connecting Claude.
+
+The model is read from `CLAUDE_MODEL` (default `claude-opus-5-5`) and the effort from `CLAUDE_EFFORT` (default `medium`).
+
+## Claude CLI subscription provider
+
+With no API key, the app falls back to the local `claude` CLI and its subscription login.
+
+The CLI provider runs `claude` in print mode and uses whatever account the CLI is logged into, such as a Claude Pro/Max subscription, with no API key.
+
+If the CLI exits with an error, the app's message tells you to run `claude` once in a terminal to log in.
+
+For safety, the CLI path disables tools and MCP and runs in a temporary directory.
+
+## Auto-detection and forcing with CHAT_PROVIDER
+
+Detection works like this: an API key means the Claude API, and otherwise the app uses the CLI. `CHAT_PROVIDER=api` or `CHAT_PROVIDER=cli` forces one provider regardless.
+
+```bash
+CHAT_PROVIDER=cli pnpm start
+```
+
+The provider check re-runs on every `/api/status` call, so a fresh `claude` login is picked up without restarting the server.
+
+## Checking status with /api/status
+
+Call `GET /api/status` to see which provider is active and which model is configured. The server listens on port 3000 unless `PORT` is set.
+
+```bash
+curl http://localhost:3000/api/status
+```
+
+The response uses the app's standard envelope, with `success` and a `data` object holding `provider` and `model`.
+
+```json
+{ "success": true, "data": { "provider": "<active provider>", "model": "claude-opus-5-5" } }
+```
+
+In the browser, the chat input stays disabled until a champion is selected and a provider is detected.
+
+## Billing differences
+
+- With the API provider, usage is billed to the Anthropic Console account that owns the key.
+- With the CLI provider, requests use the subscription login of the logged-in `claude` account, and no API key is involved.
+- Chat replies are cached on disk, keyed by prompt, conversation, provider, model and effort. A repeated question replays the saved answer and reports `cached: true` in the done event.
+- The UI flags cached answers as saved answers that used no tokens.
+
+For how provider, model and effort affect answers, see [Providers, model and effort](/concepts/providers-model-effort). (needs confirmation)
+
+## The app's own endpoints have no authentication
+
+Connecting Claude only covers the app's outbound access to Claude. The app's own HTTP endpoints, such as `/api/chat` and `/api/knowledge`, have no authentication.
+
+- [Troubleshooting and running safely](/operating/troubleshooting) - diagnose provider problems and understand the security posture
+- [Configuration reference](/operating/configuration) - every environment variable and its default

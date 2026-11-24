@@ -1,0 +1,46 @@
+---
+title: "Caching and patch refreshes"
+---
+
+Darius Coach caches coach replies on disk, wiki data per Data Dragon patch, and the champion list in memory for six hours.
+
+## Answer cache keys
+
+Before the server calls Claude for a chat request, it builds a key from the request and looks for a saved answer. The key is made from the kind of request (`chat`), the provider, the full system prompt and the conversation messages.
+
+The server summary describes the key as covering prompt, conversation, provider, model and effort.
+
+The system prompt is built from the opponent champion, the role, the ability text of Darius and the opponent, and your Playbook entries. So a different champion, a different role or an edited Playbook produces a different key, and the question is answered fresh.
+
+## Replaying saved answers
+
+When the key matches a saved answer, the server skips Claude. It sends the saved text as a single SSE `delta` event, then a `done` event with `cached: true`, and ends the response. The code comment says this avoids spending tokens.
+
+In the browser, cached answers are flagged as saved answers that used no tokens.
+
+A cache miss streams the reply from Claude as usual.
+
+## Wiki and champion data per patch
+
+Wiki data is saved to disk so that each champion is downloaded only once per patch.
+
+Champion data and wiki content refresh when the Data Dragon patch version changes.
+
+The `/api/wiki/tooltip` endpoint also sends `Cache-Control: public, max-age=3600`, so browsers may reuse a tooltip response for an hour.
+
+## 6-hour in-memory champion list
+
+The champion list behind the picker is held in memory for 6 hours. The server defines this as `CACHE_TTL_MS`, equal to 6 × 60 × 60 × 1000 milliseconds.
+
+Because the list lives in memory, it is not kept across a server restart.
+
+## Cache location
+
+Fetched wiki data goes to the directory in the `CACHE_DIR` environment variable. If it is not set, the default is `data/cache` in the project root, next to the `server` folder.
+
+Chat replies are cached on disk too. The excerpts do not show the exact directory for saved answers, so whether they share `CACHE_DIR` is (needs confirmation).
+
+The Playbook is stored separately. It lives in the file named by `PLAYBOOK_FILE`, which defaults to `data/knowledge.json`.
+
+- [Configuration reference](/operating/configuration) - every environment variable and its default
+- [Providers, model and effort](/concepts/providers-model-effort) - how these choices affect answers and cost
