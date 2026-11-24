@@ -34,6 +34,10 @@ app.get("/api/status", async (_req, res) => {
   ok(res, { provider: await providerPromise, model: MODEL });
 });
 
+app.get("/api/health", (_req, res) => {
+  ok(res, { status: "ok", uptimeSeconds: Math.round(process.uptime()) });
+});
+
 app.get("/api/champions", async (_req, res) => {
   try {
     ok(res, await getChampions());
