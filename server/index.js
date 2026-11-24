@@ -38,6 +38,10 @@ app.get("/api/health", (_req, res) => {
   ok(res, { status: "ok", uptimeSeconds: Math.round(process.uptime()) });
 });
 
+app.get("/api/hello", (_req, res) => {
+  ok(res, { message: "Hello from Darius Coach!" });
+});
+
 app.get("/api/champions", async (_req, res) => {
   try {
     ok(res, await getChampions());
