@@ -42,6 +42,13 @@ app.get("/api/hello", (_req, res) => {
   ok(res, { message: "Hello from Darius Coach!" });
 });
 
+app.get("/api/builds/:champion", (req, res) => {
+  ok(res, {
+    champion: req.params.champion,
+    items: ["Trinity Force", "Sundered Sky", "Dead Man's Plate", "Maw of Malmortius", "Guardian Angel"],
+  });
+});
+
 app.get("/api/champions", async (_req, res) => {
   try {
     ok(res, await getChampions());
