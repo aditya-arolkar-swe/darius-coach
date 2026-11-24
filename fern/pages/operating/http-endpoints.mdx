@@ -23,6 +23,7 @@ JSON request bodies are limited to 256 KB.
 | `GET /api/wiki/tooltip` | Rendered wiki tooltip HTML |
 | `POST /api/chat` | Streaming coach reply (SSE) |
 | `POST /api/suggestions` | Suggested follow-up questions |
+| `POST /api/team-comp` | Enemy team composition advice |
 | `/api/knowledge` | Playbook entries (`GET /`, `POST /`, `PUT /:id`, `DELETE /:id`) |
 
 
@@ -89,6 +90,30 @@ The front end calls it after each reply and shows three questions as chips. Clic
 If the request fails or returns no questions, the front end falls back to fixed starter questions.
 
 Suggestions are a quick side task and run at `low` effort.
+
+## Team composition advice
+
+`POST /api/team-comp` accepts a JSON body with a `champions` field: an array of 1 to 5 non-empty strings representing champion names.
+
+If `champions` is missing, not an array, empty, longer than 5 items, or contains any non-string or blank entry, the endpoint returns 400 with:
+
+```json
+{ "success": false, "error": "champions must be an array of 1 to 5 champion names" }
+```
+
+On success, the response is:
+
+```json
+{ "success": true, "data": { "champions": ["..."], "advice": "..." } }
+```
+
+The `advice` field is currently a fixed string. Coach-generated advice will be added in a later change.
+
+```bash
+curl -X POST http://localhost:3000/api/team-comp \
+  -H "Content-Type: application/json" \
+  -d '{"champions":["Ahri","Jinx","Leona"]}'
+```
 
 ## Knowledge (Playbook) endpoints
 
