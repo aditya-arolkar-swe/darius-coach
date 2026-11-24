@@ -1,0 +1,98 @@
+---
+title: "How Darius Coach works"
+---
+
+Darius Coach is a local Express server with a plain HTML, CSS and JavaScript front end that combines Riot Data Dragon, the League Wiki and Claude.
+
+## Server and front end
+
+The backend is an Express app. It parses JSON bodies up to 256 KB and serves the `public` folder as static files.
+
+Its JSON endpoints wrap results in `{ success, data }` on success and `{ success: false, error }` on failure.
+
+The server exposes these routes:
+
+- `GET /api/champions` returns the champion list.
+- `GET /embed/abilities/:name` returns an HTML page of a champion's abilities.
+- `GET /api/wiki/tooltip` returns tooltip HTML.
+- `POST /api/chat` streams coaching replies.
+- `POST /api/suggestions` returns follow-up questions. `server` module summary:
+- `/api/knowledge` stores the Playbook.
+- `GET /api/status` reports the active provider and model, and re-runs provider detection on every call so a fresh `claude` login is picked up.
+
+The Playbook is stored in a JSON file. Its path comes from `PLAYBOOK_FILE`, or defaults to `data/knowledge.json` next to the server.
+
+The front end has no build step. `app.js` imports small modules: `combo.js` for the champion picker, `chat.js` for streaming chat, and `playbook.js` for the Playbook panel.
+
+`app.js` keeps one state object with the selected champion, the role (default `top`), the message list, the provider and a busy flag. Chat input is enabled only when a champion is chosen, a provider is connected and no request is in flight.
+
+The Playbook panel talks to `/api/knowledge` with GET, POST, PUT and DELETE requests.
+
+The abilities view is an iframe on the embed page, and `embed/embed.js` restyles the wiki content with tooltips and tabs.
+
+## Data Dragon champion list and patch version
+
+The champion list comes from Riot's Data Dragon at `https://ddragon.leagueoflegends.com`.
+
+The list is cached in memory for 6 hours. Champion data and wiki content refresh when the Data Dragon patch version changes.
+
+Fetched wiki data is saved under a cache directory, set by `CACHE_DIR` or defaulting to `data/cache`, so each champion is downloaded only once per patch.
+
+Outbound fetches time out after 15 seconds.
+
+Both the chat and embed routes look the champion up by name first. An unknown name gives a 404.
+
+## Wiki Abilities extraction and HTML sanitization
+
+Ability sections come from the League Wiki API at `https://wiki.leagueoflegends.com/en-us/api.php`. Requests identify themselves with the user agent `DariusCoach/1.0 (personal matchup helper)`.
+
+The server turns a champion's wiki Abilities section into two things:
+
+- An HTML page for the embed iframe, from `renderAbilitiesPage`.
+- Plain text for the coach prompt, from the `text` field of `getAbilities`.
+
+The embed route sets a `Content-Security-Policy` header on every response. Errors, including unknown champions, render as an HTML error page.
+
+Tooltips are restricted. The tooltip endpoint rejects any `text` value that `isAllowedTooltip` does not accept with a 400 "Unsupported tooltip", and it sets `Cache-Control: public, max-age=3600` on successful responses.
+
+The sanitizer implementation itself was not among the excerpts for this page, so its exact rules are not described here. (needs confirmation)
+
+## Chat flow over SSE
+
+1. The browser sends `POST /api/chat` with the champion, role and message list.
+2. The server validates the request and returns 400 on failure. Limits are 40 messages of up to 4000 characters each, and roles are `top` and `jungle`.
+3. If no Claude connection is detected, the server returns 503.
+4. The server loads Darius's abilities, the opponent's abilities and the Playbook entries in parallel, then builds the system prompt.
+5. It replies with `Content-Type: text/event-stream` and writes events as `event: <name>` followed by a JSON `data:` line.
+6. A cache key is built from the prompt, the conversation and the provider. If a saved answer exists, the server sends one `delta` event with the full text, then a `done` event with `cached: true`.
+7. Otherwise it streams a live reply. The request is aborted if the client connection closes.
+
+The rest of the live-streaming code was not shown in the excerpt. (needs confirmation)
+
+With the CLI provider, the server runs `claude` in print mode with `stream-json` output. It disables tools, uses strict MCP config, passes no setting sources and runs in a temp directory. Earlier turns are folded into the single prompt as a transcript.
+
+On the client, a failed question is dropped from the history so user and assistant turns keep alternating. After each successful reply, the app calls `POST /api/suggestions` for follow-up questions. If that request fails or returns none, it shows fixed starter questions.
+
+## Coach prompt
+
+The system prompt is assembled by `buildSystemPrompt`. It receives:
+
+- the opponent's name
+- the role
+- Darius's ability text
+- the opponent's ability text
+- the player's Playbook, formatted by `knowledgeToPrompt`
+
+
+
+Because the Playbook entries are read on each chat request, edits apply to the next message you send.
+
+The model defaults to `claude-opus-5-5` and the effort to `medium`, both overridable with `CLAUDE_MODEL` and `CLAUDE_EFFORT`. Follow-up suggestions always run at `low` effort.
+
+The wording of the prompt template is in `server/prompt.js`, which was not included in the excerpts. (needs confirmation)
+
+## Related pages
+
+- [Providers, model and effort](/concepts/providers-model-effort) - how provider choices affect answers and cost
+- [Caching and patch refreshes](/concepts/caching) - what is cached and when it refreshes
+- [Local HTTP endpoints and streaming behavior](/operating/http-endpoints) - the endpoints and the chat stream in detail

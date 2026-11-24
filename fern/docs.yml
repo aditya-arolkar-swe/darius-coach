@@ -1,0 +1,67 @@
+instances:
+- url: adi-tests-clerk.docs.buildwithfern.com
+title: Darius Coach
+colors:
+  accent-primary:
+    light: '#1F2937'
+    dark: '#E5E7EB'
+  background:
+    light: '#FFFFFF'
+    dark: '#0A0A0A'
+  border:
+    light: '#E5E7EB'
+    dark: '#1F2937'
+layout:
+  searchbar-placement: header
+navigation:
+- section: Get started
+  slug: get-started
+  contents:
+  - page: Darius Coach overview
+    path: ./pages/get-started/overview.mdx
+    slug: overview
+  - page: Quickstart
+    path: ./pages/get-started/quickstart.mdx
+    slug: quickstart
+  - page: Connecting Claude (API key or CLI)
+    path: ./pages/get-started/connecting-claude.mdx
+    slug: connecting-claude
+- section: Using the coach
+  slug: using-the-coach
+  contents:
+  - page: Champion picker and enemy abilities
+    path: ./pages/using-the-coach/champion-picker-and-abilities.mdx
+    slug: champion-picker-and-abilities
+  - page: Matchup coaching chat
+    path: ./pages/using-the-coach/matchup-coaching-chat.mdx
+    slug: matchup-coaching-chat
+  - page: Suggested follow-up questions
+    path: ./pages/using-the-coach/follow-up-questions.mdx
+    slug: follow-up-questions
+  - page: Using your Playbook
+    path: ./pages/using-the-coach/playbook.mdx
+    slug: playbook
+- section: Concepts
+  slug: concepts
+  contents:
+  - page: How Darius Coach works
+    path: ./pages/concepts/how-it-works.mdx
+    slug: how-it-works
+  - page: Providers, model and effort
+    path: ./pages/concepts/providers-model-effort.mdx
+    slug: providers-model-effort
+  - page: Caching and patch refreshes
+    path: ./pages/concepts/caching.mdx
+    slug: caching
+- section: Configuration and operation
+  slug: operating
+  contents:
+  - page: Configuration reference
+    path: ./pages/operating/configuration.mdx
+    slug: configuration
+  - page: Local HTTP endpoints and streaming behavior
+    path: ./pages/operating/http-endpoints.mdx
+    slug: http-endpoints
+  - page: Troubleshooting and running safely
+    path: ./pages/operating/troubleshooting.mdx
+    slug: troubleshooting

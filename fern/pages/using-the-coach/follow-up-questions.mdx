@@ -1,0 +1,49 @@
+---
+title: "Suggested follow-up questions"
+---
+
+Darius Coach shows clickable question chips above the chat input, so you can continue a matchup conversation without typing, and falls back to fixed starter questions when Claude cannot suggest any.
+
+## How suggestions appear
+
+Suggested questions sit above the input box and only show once an enemy champion is selected.
+
+After each reply finishes, the app asks Claude what you are likely to ask next and shows three of those questions as chips under the label "Suggested by your coach".
+
+While the request is running, the chip area shows the note "Coach is thinking of follow-up questions…".
+
+Suggestions are only refreshed when a reply actually came back. If a question fails, no new suggestions are requested for it.
+
+If you send another message or reset the chat while suggestions are loading, the pending suggestion request is cancelled.
+
+## Clicking a chip
+
+Clicking a chip only fills the chat input with that question; it never sends it. You can edit the text and then send it yourself.
+
+After the text is placed in the box, the input receives focus, unless the input is disabled.
+
+The input is enabled only when a champion is selected, a Claude provider is connected, and the coach is not busy answering.
+
+## Fallback starter questions
+
+Before the first reply, and whenever the chat is reset, the chips show fixed starter questions instead of Claude-generated ones.
+
+With `{champion}` standing for the enemy you picked, the three starters are:
+
+- What CC does `{champion}` have?
+- What items should I build into `{champion}`?
+- What runes should I take into `{champion}`?
+
+The same starters also replace the suggestions when the suggestions request fails or returns no questions.
+
+## How suggestions are generated
+
+The front end sends a `POST` to `/api/suggestions` with the champion, the role and the conversation so far. The response must have `success` set and carry a `questions` list in `data`.
+
+On the server, the suggestions endpoint is part of the Express backend, which generates follow-up suggestions alongside streaming chat.
+
+Suggestions are treated as a quick side task, so they run at low effort (`SUGGESTION_EFFORT` is `"low"`), regardless of the effort you set for chat replies.
+
+Like chat, suggestions go through whichever Claude provider is active, either the Anthropic API or the logged-in `claude` CLI. When the CLI is used for a structured call, it has a 90 second timeout.
+
+To see how to connect a provider, read [Connecting Claude (API key or CLI)](/get-started/connecting-claude). For the main chat flow, see [Matchup coaching chat](/using-the-coach/matchup-coaching-chat). (needs confirmation)

@@ -1,0 +1,87 @@
+---
+title: "Configuration reference"
+---
+
+This page lists every environment variable Darius Coach reads, what it controls, and its default value.
+
+All variables are optional. With none set, the app listens on port 3000 and uses the `claude` CLI as its provider. and are the sources for the defaults below.
+
+## CHAT_PROVIDER
+
+Forces which Claude connection the coach uses: `api` or `cli`.
+
+Default: unset, so the provider is auto-detected. If an API key is present, the app uses the Claude API, billed to your Console account. Otherwise it uses the local `claude` CLI and its subscription login.
+
+The provider check re-runs on every `GET /api/status` call, so a fresh `claude` login is picked up without restarting.
+
+When the CLI provider is used, the app runs `claude` in print mode with tools disabled, strict MCP config and no setting sources. It runs in the OS temp directory.
+
+For setup steps, see [Connecting Claude (API key or CLI)](/get-started/connecting-claude). (needs confirmation)
+
+## ANTHROPIC_API_KEY
+
+Your Anthropic API key. Setting it makes the app use the Claude API (pay-per-use billing on the Claude Console) unless `CHAT_PROVIDER` says otherwise.
+
+The Anthropic SDK client reads the key from the environment.
+
+The README's setup is to copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY=...`.
+
+```bash
+cp .env.example .env
+# then in .env:
+# ANTHROPIC_API_KEY=YOUR_API_KEY
+```
+
+Default: unset. Without a key, the app falls back to the `claude` CLI.
+
+## CLAUDE_MODEL
+
+The Claude model used for coaching replies and suggested follow-ups on the API path.
+
+Default: `claude-opus-5-5`.
+
+The active model is returned by `GET /api/status` alongside the provider.
+
+Cached chat replies are keyed by prompt, conversation, provider, model and effort, so changing the model means earlier saved answers are not replayed.
+
+## CLAUDE_EFFORT
+
+The effort level for coaching replies.
+
+Default: `medium`.
+
+On the API path it is sent as the request's `output_config` effort for chat replies.
+
+Suggested follow-up questions are a side task and always run at `low` effort. This is a fixed constant, not controlled by `CLAUDE_EFFORT`.
+
+Effort is part of the chat answer cache key.
+
+For how model and effort affect answers and cost, see [Providers, model and effort](/concepts/providers-model-effort). (needs confirmation)
+
+## PLAYBOOK_FILE
+
+Path of the JSON file where your Playbook entries are stored.
+
+Default: `data/knowledge.json` in the repository root.
+
+The file's contents are sent to the coach with every message.
+
+The Playbook is capped at 50 entries, with 80-character titles and 1500-character text.
+
+## PORT
+
+The TCP port the Express server listens on.
+
+Default: `3000`. A value that is not a valid non-zero number also falls back to `3000`.
+
+With the default, the app runs at `http://localhost:3000`.
+
+## CACHE_DIR
+
+The directory where fetched wiki data is saved, so each champion is downloaded only once per patch.
+
+Default: `data/cache` in the repository root. Delete the directory to force a fresh download.
+
+Saved coach answers and suggested questions are stored in an `answers/` subdirectory of the cache.
+
+For what is cached and when it refreshes, see [Caching and patch refreshes](/concepts/caching). (needs confirmation)

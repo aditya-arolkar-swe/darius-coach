@@ -1,0 +1,67 @@
+---
+title: "Quickstart"
+---
+
+Install Darius Coach locally, start it with pnpm, pick an enemy champion and ask the coach your first matchup question.
+
+## Prerequisites
+
+You need a Node.js environment with pnpm. The app is a local Express app that uses a plain HTML, CSS and JS front end with no build step.
+
+The start script uses the `--env-file-if-exists` flag of `node`, so your Node.js version must support it (minimum version needs confirmation).
+
+You also need a way to reach Claude: either a Claude Pro/Max subscription with the `claude` CLI logged in, or an Anthropic API key.
+
+## Install and start with pnpm start
+
+From the repository root, install dependencies and start the server:
+
+```bash
+pnpm install
+pnpm start          # → http://localhost:3000
+```
+
+
+
+`pnpm start` runs `node --env-file-if-exists=.env server/index.js`, so values in an optional `.env` file are loaded automatically.
+
+## Open the app
+
+Open `http://localhost:3000` in your browser. The server listens on port 3000 unless you set `PORT`.
+
+## Connect Claude
+
+The chat input stays disabled until a champion is selected and a Claude provider is available. Pick one of the two options:
+
+- **Your Claude account (default):** install Claude Code and run `claude` once to log in. No API key is needed, and it uses your Claude Pro/Max subscription through the `claude` CLI.
+- **API key:** run `cp .env.example .env`, then set `ANTHROPIC_API_KEY=YOUR_API_KEY`. This uses pay-per-use billing on the Claude Console.
+
+When an API key is present, the API provider is used; otherwise the app falls back to the `claude` CLI. Set `CHAT_PROVIDER=api` or `CHAT_PROVIDER=cli` to force one.
+
+If you change your setup, restart with `pnpm start`.
+
+For details on choosing and verifying a provider, see [Connecting Claude (API key or CLI)](/get-started/connecting-claude).
+
+## Search for an enemy champion
+
+Use the searchable champion picker, which is populated from Riot's Data Dragon champion list. Once you select the enemy champion, the page shows only that champion's Abilities section as it appears on the League Wiki, without ads, navigation or sidebars. Hover keywords, abilities, items or champions to see the wiki's tooltips.
+
+## Ask the coach a question
+
+1. Choose your role. Top and Jungle are the only supported roles.
+2. Click Send. The coach only answers when you click Send, and a first matchup question is prepared for you, along the lines of "How should I play Darius into *champion* in top lane? What items should I build?"
+3. Read the streamed reply: three quick tips covering the game plan, the ability to respect and the item build. The reply arrives over server-sent events from `POST /api/chat`.
+4. Click one of the suggested follow-up chips. Clicking a chip only fills the input; you still press Send.
+
+If you ask the exact same thing again, the saved answer is replayed and the chat shows "Saved answer: same question as before, no tokens used".
+
+To learn more, see [Matchup coaching chat](/using-the-coach/matchup-coaching-chat) and [Using your Playbook](/using-the-coach/playbook). (needs confirmation)
+
+## Optional settings: PORT and CACHE_DIR
+
+- `PORT`: the port the server listens on. The default is 3000.
+- `CACHE_DIR`: where fetched wiki data is saved. The default is `data/cache`; delete it to force a fresh download.
+
+Other optional settings include `CHAT_PROVIDER`, `CLAUDE_MODEL` (default `claude-opus-5-5`), `CLAUDE_EFFORT` (default `medium`) and `PLAYBOOK_FILE`.
+
+See the [Configuration reference](/operating/configuration) for the full list.

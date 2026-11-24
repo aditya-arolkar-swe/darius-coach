@@ -1,0 +1,78 @@
+---
+title: "Matchup coaching chat"
+---
+
+This page explains how to ask the coach how to play Darius into an enemy champion in Top or Jungle, and how to use its streamed, cached replies.
+
+## Choosing a role
+
+The coach supports two roles, Top and Jungle. No other roles are accepted.
+
+The front end starts with the role set to `top`.
+
+The role you pick is sent with every chat request and is part of the coach prompt the server builds for the matchup.
+
+The app's opening question changes with the role. It asks "in the jungle" for Jungle and "in top lane" for Top.
+
+## Asking a question
+
+Before you can chat, pick an enemy champion (see [Champion picker and enemy abilities](/using-the-coach/champion-picker-and-abilities)) and connect Claude (see [Connecting Claude (API key or CLI)](/get-started/connecting-claude)). The input box and Send button stay disabled until a champion is chosen, a Claude provider is available, and no reply is in progress.
+
+Each message you send goes to `POST /api/chat` with the champion, role and the whole conversation so far.
+
+For every request the server builds the coach prompt from:
+- the opponent champion and your role
+- Darius's wiki abilities text
+- the opponent's wiki abilities text
+- your Playbook entries
+
+
+
+The server returns an error in these cases:
+- The request fails validation: `400`.
+- The champion is unknown: `404`.
+- No Claude connection is configured: `503`, with a pointer to the setup steps in the chat panel.
+
+
+
+Suggested-question chips only fill the input box when clicked. They never send the message for you. Before the first reply, and whenever Claude cannot suggest questions, the chips show fixed starter questions about CC, items and runes. After each reply the app asks Claude for follow-ups and shows three of them. For details, see [Suggested follow-up questions](/using-the-coach/follow-up-questions).
+
+If a question fails, the app drops it from the conversation so user and assistant turns keep alternating.
+
+## The three-tip reply format
+
+The coach is built to answer with three tips for the matchup, then suggest three follow-up questions as chips. The follow-ups come from a separate request to `POST /api/suggestions`, not from the chat reply itself.
+
+The exact wording of the instructions that produce the three-tip format lives in the coach prompt file, which was not available for this page (needs confirmation).
+
+Because your Playbook is read on every request and included in the prompt, your saved habits and preferences shape each reply. See [Using your Playbook](/using-the-coach/playbook).
+
+## Streaming replies
+
+`POST /api/chat` answers as a server-sent event stream (`text/event-stream`). The server sends `delta` events carrying text and a final `done` event.
+
+If you close the connection, the server aborts the in-flight request to Claude.
+
+On the front end, sending a new message cancels any reply and suggestion request still in progress. Resetting the chat does the same, and a reply that arrives after a reset is ignored.
+
+With the CLI provider, earlier turns are folded into a single prompt as a transcript ("Player" and "Coach" turns). The CLI runs in a temporary directory with tools and MCP disabled, and a run is stopped after 5 minutes.
+
+The model defaults to `claude-opus-5-5` and effort to `medium`. Override them with `CLAUDE_MODEL` and `CLAUDE_EFFORT`. Replies are capped at 16000 output tokens. See [Providers, model and effort](/concepts/providers-model-effort).
+
+## Saved (cached) answers
+
+Before calling Claude, the server looks for a saved answer under a key built from the chat kind, provider, coach prompt and conversation. On a hit it replays the saved text as one `delta` event, then sends `done` with `cached: true`, and no tokens are spent.
+
+Saved answers are stored on disk. The key also covers the model and effort, so changing either gives a fresh answer. `server`
+
+The front end flags a cached reply to you as a saved answer that used no tokens. `public`
+
+Because the coach prompt includes your Playbook, changing the Playbook changes the prompt and can produce a fresh answer instead of a saved one. For what is cached and when it refreshes, see [Caching and patch refreshes](/concepts/caching).
+
+## Message limits
+
+A conversation can hold at most 40 messages, and each message can be at most 4000 characters.
+
+Requests that break these limits fail validation and return a `400` error. The JSON request body is also limited to 256 KB.
+
+For scripting against the endpoints, see [Local HTTP endpoints and streaming behavior](/operating/http-endpoints). (needs confirmation)

@@ -1,0 +1,49 @@
+---
+title: "Champion picker and enemy abilities"
+---
+
+Search for the enemy champion, then read its League Wiki Abilities section with hover tooltips and tabs.
+
+## Searching the champion list
+
+The picker is a searchable champion dropdown. The champion list comes from the server's `/api/champions` endpoint, which is based on the Riot Data Dragon list.
+
+Picking a champion is what unlocks the rest of the page. The chat input and the Send button stay disabled until a champion is chosen and a Claude provider is connected.
+
+The server keeps the champion list in memory for 6 hours.
+
+## Abilities panel
+
+After you pick a champion, the app shows only the Abilities section from the League Wiki. The content is sanitized and rendered with wiki styles.
+
+The panel is an iframe that loads the server's embed page for that champion. The page is served from `/embed/abilities/:name`.
+
+If the name does not match a known champion, the embed route answers 404 with an error page reading `Unknown champion "<name>"`. If loading the abilities fails, it returns an error page that starts with "Couldn't load abilities".
+
+## Tabs and hover tooltips
+
+The embed page runs `embed.js`. It reimplements the wiki gadgets that the Abilities section relies on in plain JavaScript: tooltips, Notes tabs, `「a」「b」` value flipping and ◄ ► leveling tabs.
+
+- **Tooltips:** Hovering an element with one of these classes opens a tooltip: `ability-icon`, `buff-icon`, `champion-icon`, `glossary`, `item-icon`, `rune-icon`, `spell-icon` or `pp-tooltip`. The tooltip shows "Loading…" while it is fetched, follows the mouse, and hides when you move away or scroll.
+- **Tooltip content:** The browser requests it from `/api/wiki/tooltip` and keeps each result in a per-page cache. The server accepts only supported tooltip text and otherwise answers 400 with "Unsupported tooltip". Successful responses carry `Cache-Control: public, max-age=3600`.
+- **Tabs:** Elements with the `tabber` class get a tab navigation list built from their `tabbertab` children, for the Notes and Hide tabs.
+
+## Patch-aware refreshes
+
+Champion data and wiki content refresh when the Data Dragon patch version changes. Abilities and tooltips are cached per patch.
+
+For details on what is cached and for how long, see [Caching and patch refreshes](/concepts/caching). (needs confirmation)
+
+## Embedding the abilities page
+
+The abilities view is a standalone page at this path on the running app:
+
+```text
+/embed/abilities/:name
+```
+
+
+
+The route sets a `Content-Security-Policy` header on the page. The tooltip code notes that tooltip HTML is sanitized server-side and that the policy blocks any script in it.
+
+Next, see [Matchup coaching chat](/using-the-coach/matchup-coaching-chat) for asking the coach about the champion you picked. (needs confirmation)

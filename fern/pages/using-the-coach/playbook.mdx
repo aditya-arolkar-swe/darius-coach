@@ -1,0 +1,47 @@
+---
+title: "Using your Playbook"
+---
+
+The Playbook is a personal list of habits and preferences that Darius Coach sends with every message so coaching replies fit how you play.
+
+## What the Playbook is
+
+The Playbook is a set of knowledge entries, each with a title and a description. The front end manages them in a 📘 Playbook panel that lists, adds, edits and deletes entries through the `/api/knowledge` endpoints.
+
+The panel toggle shows the number of entries, for example "📘 Playbook (3)". When there are none, the list reads "No entries yet."
+
+## Adding an entry
+
+1. Click the 📘 Playbook button to open the panel.
+2. Fill in the title and the description. Both are required; if either is empty, the form shows "Title and description are both required."
+3. Click **Add to playbook**. The form sends a `POST` to `/api/knowledge`, the list refreshes, and the form resets.
+
+Leading and trailing whitespace is trimmed from both fields before saving.
+
+If the server rejects the entry, its error message is shown in the panel.
+
+## Editing and deleting entries
+
+- **Edit**: click **Edit** on an entry. Its title and text load into the form, the save button changes to **Save changes**, and a cancel button appears. Saving sends a `PUT` to `/api/knowledge/:id`.
+- **Cancel an edit**: the cancel button resets the form and returns it to add mode.
+- **Delete**: click **Delete** and confirm the prompt `Delete "<title>" from your playbook?`. The entry is removed with a `DELETE` to `/api/knowledge/:id`. If you were editing that entry, the form resets.
+
+## Entry limits
+
+The server enforces these limits on the Playbook: `server` (needs confirmation)
+
+- At most 50 entries. (needs confirmation)
+- Titles up to 80 characters. (needs confirmation)
+- Entry text up to 1500 characters. (needs confirmation)
+
+## Where it is stored (PLAYBOOK_FILE)
+
+Entries are stored in a JSON file. By default that is `data/knowledge.json` in the project root; set the `PLAYBOOK_FILE` environment variable to use a different path.
+
+## How it is sent with each message
+
+On every `POST /api/chat` request, the server loads all Playbook entries, converts them to prompt text and includes them in the system prompt together with the Darius and opponent ability text, the role and the opponent's name. You do not attach entries manually.
+
+Chat replies are cached on disk, keyed by prompt, conversation, provider, model and effort. Because the Playbook is part of the system prompt, changing it changes the prompt that the cache is keyed on.
+
+For how replies are produced, see [Matchup coaching chat](/using-the-coach/matchup-coaching-chat). For caching details, see [Caching and patch refreshes](/concepts/caching). (needs confirmation)
